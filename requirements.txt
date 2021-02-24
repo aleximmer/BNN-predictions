@@ -1,0 +1,11 @@
+torch==1.5.0
+torchvision==0.6.0
+scikit-learn==0.23.2
+backpack-for-pytorch==1.1.1
+deepobs==1.1.2
+numpy==1.19.2
+matplotlib
+tqdm
+tensorflow
+gpytorch
+pytest
