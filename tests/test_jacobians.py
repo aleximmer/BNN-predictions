@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from preds.models import FMNISTNet
+from preds.models import CIFAR10Net
 from preds.models import MLPS
 from preds.gradients import Jacobians, Jacobians_naive
 
@@ -9,7 +9,7 @@ from preds.gradients import Jacobians, Jacobians_naive
 @pytest.fixture
 def model():
     torch.manual_seed(71)
-    model = FMNISTNet(in_channels=2, n_out=3, in_pixels=28)
+    model = CIFAR10Net(in_channels=2, n_out=3)
     return model
 
 

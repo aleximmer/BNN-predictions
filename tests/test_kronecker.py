@@ -60,9 +60,9 @@ class SmallMockModel:
 
 @pytest.fixture
 def model():
-    from preds.models import FMNISTNet
+    from preds.models import CIFAR10Net
     torch.manual_seed(71)
-    model = FMNISTNet(in_channels=2, n_out=3, in_pixels=28)
+    model = CIFAR10Net(in_channels=2, n_out=3)
     model = extend(model)
     return model
 
@@ -76,7 +76,7 @@ def lossfunc():
 @pytest.fixture
 def X():
     torch.manual_seed(15)
-    batch_size = 20
+    batch_size = 100
     channels = 2
     pixels = 28
     X = torch.randn(batch_size, channels, pixels, pixels)
@@ -96,7 +96,7 @@ def small_mock_model():
 @pytest.fixture
 def y():
     torch.manual_seed(15)
-    batch_size = 20
+    batch_size = 100
     classes = 3
     y = torch.softmax(torch.randn(batch_size, classes), dim=1).argmax(dim=1)
     return y
@@ -136,14 +136,15 @@ def test_kron_aggregation(model, lossfunc, X, y):
 def test_kron_batching(model, lossfunc, X, y):
     kron1 = Kron(model, 0.3)
     model.zero_grad()
+    h = int(len(X) / 2)
 
     # update twice:
-    loss = lossfunc(model(X[:10]), y[:10])
+    loss = lossfunc(model(X[:h]), y[:h])
     with backpack(KFLR()):
         loss.backward()
     kron1.update([p.kflr for p in model.parameters()],
                  factor=1., batch_factor=1/2)
-    loss = lossfunc(model(X[10:]), y[10:])
+    loss = lossfunc(model(X[h:]), y[h:])
     with backpack(KFLR()):
         loss.backward()
     kron1.update([p.kflr for p in model.parameters()],
@@ -162,10 +163,10 @@ def test_kron_batching(model, lossfunc, X, y):
         assert False
     for QH, QHother in zip(kron1.qhs, kron2.qhs):
         if len(QH) == 1 and len(QHother) == 1:
-            assert torch.abs(QH[0] - QHother[0]).max() < 1e-4
+            assert torch.abs(QH[0] - QHother[0]).max() < 1e-3
         elif len(QH) == 2 and len(QHother) == 2:
-            assert torch.abs(QH[0] - QHother[0]).max() < 1e-4
-            assert torch.abs(QH[1] - QHother[1]).max() < 1e-4
+            assert torch.abs(QH[0] - QHother[0]).max() < 1e-3
+            assert torch.abs(QH[1] - QHother[1]).max() < 1e-3
 
 
 def test_kron_decomposition(model, lossfunc, X, y):
@@ -217,6 +218,18 @@ def test_sampling_shape(mock_model):
     S, P = samples.size()
     assert S == 77
     assert P == mock_model.n_params
+
+
+def test_sampling_cov(small_mock_model):
+    mock = small_mock_model
+    delta = 0.56
+    kron = Kron(mock, delta)
+    kron.update(mock.get_factors())
+    kron.decompose()
+    Cov = np.cov(kron.sample(1000000).cpu().numpy().T)
+
+    Sigma = torch.inverse(mock.get_prec() + torch.eye(mock.n_params) * delta).numpy()
+    assert np.max(np.abs(Cov - Sigma)) < 1e-3
 
 
 def test_sampling_bias(small_mock_model):

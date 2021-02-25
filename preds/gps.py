@@ -677,7 +677,6 @@ def gp_quantities(model, X_train, X_test=None, outputs=-1, optimize_params=set()
         device_ids = list(range(n)) if n > 0 else [-1]
 
     default_device = 'cuda:{}'.format(device_ids[0])
-    default_device = 'cpu'
 
     if isinstance(outputs, int):
         if outputs >= 0 and outputs < model.output_size:

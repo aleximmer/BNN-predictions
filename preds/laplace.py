@@ -162,15 +162,11 @@ class FunctionaLaplace:
     def infer(self, train_loadera, train_loaderb, max_ram_gb=10, batch_size_per_gpu=512,
               print_progress=False):
         self.train_loader = train_loadera
-        if self.device == torch.device('cuda'):
-            X1 = torch.cat([batch[0] for batch in train_loadera], dim=0).pin_memory()
-            X2 = torch.cat([batch[0] for batch in train_loaderb], dim=0).pin_memory()
-        else:
-            X1 = torch.cat([batch[0] for batch in train_loadera], dim=0)
-            X2 = torch.cat([batch[0] for batch in train_loaderb], dim=0)
+        X1 = torch.cat([batch[0] for batch in train_loadera], dim=0).pin_memory()
+        X2 = torch.cat([batch[0] for batch in train_loaderb], dim=0).pin_memory()
 
         self.gp_quantities = gp_quantities(self.model, X1, X2, collapse_groups=True,
-                                           with_prior_prec=False, cuda=False,
+                                           with_prior_prec=False,
                                            batch_size_per_gpu=batch_size_per_gpu,
                                            print_progress=print_progress, max_ram_gb=max_ram_gb)
 
