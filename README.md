@@ -30,7 +30,7 @@ bnn_samples = posterior.predictive_samples_bnn(X, n_samples=1000)
 
 For a running and worked example, see the two examples on regression and classification:
 - [classification example notebook](https://github.com/AlexImmer/BNN-predictions/blob/main/notebooks/Classification%20Predictive%20Example.ipynb)
-- [regression example notebook](link)
+- [regression example notebook](https://github.com/AlexImmer/BNN-predictions/blob/main/notebooks/Regression%20Predictive%20Example.ipynb)
 
 The two examples train a neural network until convergence and construct variants of the Laplace-GGN posterior approximation.
 The script plots the posterior predictive of the proposed GLM in comparison to the heavily underfitting BNN predictive.
