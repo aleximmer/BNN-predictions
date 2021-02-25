@@ -29,8 +29,8 @@ bnn_samples = posterior.predictive_samples_bnn(X, n_samples=1000)
 ```
 
 For a running and worked example, see the two examples on regression and classification:
-- [classification example notebook](link)
-- [regression example notebook](link)
+- [classification example notebook](https://github.com/AlexImmer/BNN-predictions/blob/main/notebooks/Classification%20Predictive%20Example.ipynb)
+- [regression example notebook](https://github.com/AlexImmer/BNN-predictions/blob/main/notebooks/Regression%20Predictive%20Example.ipynb)
 
 The two examples train a neural network until convergence and construct variants of the Laplace-GGN posterior approximation.
 The script plots the posterior predictive of the proposed GLM in comparison to the heavily underfitting BNN predictive.
@@ -38,10 +38,14 @@ The underfitting can only be resolved by artificially reducing the posterior var
 using a different prior does not help as it fails across the entire range of values.
 
 ### Regression example
-The resulting plot will be:
+The resulting plot compares the proposed GLM to the BNN predictive:
+
+![image](https://user-images.githubusercontent.com/7715036/109063105-119ea800-76e9-11eb-8e3a-565d32699bdb.png)
 
 ### Classification example
-The resulting plot will be:
+In the following example, the BNN predictive underfits severely so that the contours are almost invisible:
+
+![image](https://user-images.githubusercontent.com/7715036/109063214-33982a80-76e9-11eb-91c4-214a526c5fac.png)
 
 ## Setup
 
