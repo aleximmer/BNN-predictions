@@ -200,7 +200,7 @@ if __name__ == '__main__':
     multi_datasets = ['glass', 'vehicle', 'waveform', 'satellite', 'digits']
     binary_datasets = ['TwoMoons', 'australian', 'breast_cancer', 'ionosphere', 'banana']
     datasets = multi_datasets + binary_datasets
-    parser.add_argument('-d', '--dataset', help='dataset', choices=datasets)
+    parser.add_argument('-d', '--dataset', help='dataset', choices=datasets, required=True)
     parser.add_argument('--double', help='double precision', action='store_true')
     parser.add_argument('-s', '--seed', help='randomness seed', default=7011, type=int)
     parser.add_argument('--n_epochs', help='epochs training neural network', default=10000, type=int)
