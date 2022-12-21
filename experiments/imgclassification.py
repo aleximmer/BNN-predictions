@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn.utils import parameters_to_vector
 from torch.utils.data import DataLoader
@@ -6,12 +7,17 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from torchvision.datasets import VisionDataset
 from tqdm import tqdm
+import os
+import wandb
 
 from preds.models import CIFAR10Net, CIFAR100Net, MLPS
 from preds.datasets import MNIST, FMNIST, CIFAR10
 
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = True
+
+
+os.environ["WANDB_API_KEY"] = "e31842f98007cca7e04fd98359ea9bdadda29073"
 
 
 class QuickDS(VisionDataset):
@@ -74,43 +80,48 @@ def evaluate(model, data_loader, criterion, device):
     return loss / len(data_loader.dataset), acc / len(data_loader.dataset)
 
 
-def main(ds_train, ds_test, model_name, seed, n_epochs, batch_size, lr, deltas, device, fname):
-    train_loader = DataLoader(ds_train, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(ds_test, batch_size=batch_size, shuffle=False)
-    for delta in deltas:
-        torch.manual_seed(seed)
-        model = get_model(model_name, ds_train).to(device)
-        optim = Adam(model.parameters(), lr=lr, weight_decay=delta)
-        scheduler = LambdaLR(optim, lr_lambda=lambda epoch: 1/(epoch // 10 + 1))
-        criterion = torch.nn.CrossEntropyLoss(reduction='sum')
-        losses = list()
-        N = len(ds_train)
-        # training
-        for epoch in tqdm(list(range(n_epochs))):
-            running_loss = 0.0
-            for X, y in train_loader:
-                # X, y = X.to(device), y.to(device)
-                M = len(y)
-                optim.zero_grad()
-                fs = model(X)
-                loss = N / M * criterion(fs, y)
-                loss.backward()
-                optim.step()
-                p = parameters_to_vector(model.parameters()).detach()
-                running_loss += loss.item() + (1/2 * delta * p.square().sum()).item()
-            loss_avg = running_loss / len(train_loader)
-            losses.append(loss_avg)
-            scheduler.step()
-        # evaluation
-        tr_loss, tr_acc = evaluate(model, train_loader, criterion, device)
-        te_loss, te_acc = evaluate(model, test_loader, criterion, device)
-        metrics = {'test_loss': te_loss, 'test_acc': te_acc,
-                   'train_loss': tr_loss, 'train_acc': tr_acc}
+def main(ds_train, ds_test, model_name, seed, n_epochs, batch_size, lr, deltas, device, fname, wandb_kwargs):
+    with wandb.init(**wandb_kwargs) as run:
+        train_loader = DataLoader(ds_train, batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(ds_test, batch_size=batch_size, shuffle=False)
+        metrics_df = pd.DataFrame()
+        for delta in deltas:
+            torch.manual_seed(seed)
+            model = get_model(model_name, ds_train).to(device)
+            print(sum(p.numel() for p in model.parameters()))
+            optim = Adam(model.parameters(), lr=lr, weight_decay=delta)
+            scheduler = LambdaLR(optim, lr_lambda=lambda epoch: 1/(epoch // 10 + 1))
+            criterion = torch.nn.CrossEntropyLoss(reduction='sum')
+            losses = list()
+            N = len(ds_train)
+            # training
+            for epoch in tqdm(list(range(n_epochs))):
+                running_loss = 0.0
+                for X, y in train_loader:
+                    X, y = X.to(device), y.to(device)
+                    M = len(y)
+                    optim.zero_grad()
+                    fs = model(X)
+                    loss = N / M * criterion(fs, y)
+                    loss.backward()
+                    optim.step()
+                    p = parameters_to_vector(model.parameters()).detach()
+                    running_loss += loss.item() + (1/2 * delta * p.square().sum()).item()
+                run.log({f'train/loss/{delta}': running_loss})
+                loss_avg = running_loss / len(train_loader)
+                losses.append(loss_avg)
+                scheduler.step()
+            # evaluation
+            tr_loss, tr_acc = evaluate(model, train_loader, criterion, device)
+            te_loss, te_acc = evaluate(model, test_loader, criterion, device)
+            metrics = {'test_loss': te_loss, 'test_acc': te_acc,
+                       'train_loss': tr_loss, 'train_acc': tr_acc, 'delta': delta}
 
-        state = {'model': model.state_dict(), 'optimizer': optim.state_dict(),
-                 'losses': losses, 'metrics': metrics, 'delta': delta}
-        torch.save(state, fname.format(delta=delta))
-
+            state = {'model': model.state_dict(), 'optimizer': optim.state_dict(),
+                     'losses': losses, 'metrics': metrics, 'delta': delta}
+            torch.save(state, fname.format(delta=delta))
+            metrics_df = metrics_df.append(metrics, ignore_index=True)
+        run.log({'metrics': wandb.Table(dataframe=metrics_df)})
 
 if __name__ == '__main__':
     import argparse
@@ -120,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', help='dataset', choices=datasets)
     parser.add_argument('-m', '--model', help='which model to train', choices=models)
     parser.add_argument('-s', '--seed', help='randomness seed', default=117, type=int)
-    parser.add_argument('--n_epochs', help='epochs training neural network', default=500, type=int)
+    parser.add_argument('--n_epochs', help='epochs training neural network', default=200, type=int)
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--lr', help='neural network learning rate', default=1e-3, type=float)
     parser.add_argument('--n_deltas', help='number of deltas to try', default=16, type=int)
@@ -142,12 +153,23 @@ if __name__ == '__main__':
         torch.set_default_dtype(torch.double)
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # device = 'cpu'
+    print(device, torch.cuda.is_available(), torch.cuda.device_count(), torch.cuda.current_device(), torch.cuda.get_device_name(0))
 
     ds_train, ds_test = get_dataset(dataset, double, device)
 
     # naming convention: dataset_model_seed_delta
-    fname = 'models/' + '_'.join([dataset, model_name, str(seed)]) + '_{delta:.1e}.pt'
+    PATH = '/home/mjazbec/laplace/BNN-predictions/experiments/'
+    fname = PATH + 'models/' + '_'.join([dataset, model_name, str(seed)]) + '_{delta:.1e}.pt'
     deltas = np.logspace(logd_min, logd_max, n_deltas)
     deltas = np.insert(deltas, 0, 0)  # add unregularized network
 
-    main(ds_train, ds_test, model_name, seed, n_epochs, batch_size, lr, deltas, device, fname)
+    wandb_kwargs = {
+        'project': 'laplace',
+        'entity': 'metodj',
+        'notes': '',
+        'mode': 'online',
+        'config': vars(args)
+    }
+
+    main(ds_train, ds_test, model_name, seed, n_epochs, batch_size, lr, deltas, device, fname, wandb_kwargs)
