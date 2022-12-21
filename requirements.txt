@@ -7,6 +7,6 @@ numpy==1.19.2
 matplotlib
 tqdm
 tensorflow
-gpytorch
+gpytorch==1.4.0
 pytest
 wandb
