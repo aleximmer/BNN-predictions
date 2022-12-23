@@ -1,0 +1,2 @@
+class NumericsGPError(Exception):
+    pass

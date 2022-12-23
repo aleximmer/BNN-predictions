@@ -1,19 +1,21 @@
 import numpy as np
 import torch.multiprocessing as mp
 import torch
+import logging
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn.utils import parameters_to_vector
 from gpytorch.lazy import DiagLazyTensor, MatmulLazyTensor, lazify
 from gpytorch.distributions import MultivariateNormal
 from opt_einsum import contract
-import warnings
+
 
 from collections import defaultdict
 from contextlib import contextmanager
 import itertools
 from copy import deepcopy
 
+from preds.exceptions import NumericsGPError
 from preds.gradients import Jacobians_gp
 
 from preds.likelihoods import BernoulliLh, CategoricalLh
@@ -133,7 +135,7 @@ class Parallel_cholesky(nn.Module):
                     K.diagonal(dim1=-2, dim2=-1).add_(v)
                 L = torch.cholesky(K, out=K)
                 if v > 0:
-                    warnings.warn('K is singular - adding jitter {}'.format(v))
+                    logging.warning('K is singular - adding jitter {}'.format(v))
                 break
             except RuntimeError as e:
                 continue
@@ -183,11 +185,11 @@ class Parallel_calc_mu(nn.Module):
                 K_train_train.diagonal(dim1=-2, dim2=-1).add_(v * torch.ones_like(pi))  # TODO: rewrite this
                 L = torch.cholesky(K_train_train, out=K_train_train)
                 if i > 0:
-                    print('Added jitter of', v)
+                    logging.info('Added jitter of', v)
                 break
             except RuntimeError as e:
                 if i == len(jitters) - 1:
-                    raise e
+                    raise NumericsGPError()
         alpha = torch.cholesky_solve(gp_f_train_map.squeeze(0).unsqueeze(-1), L.squeeze(0)).squeeze(-1)  # TODO  .squeeze(0) needed?
         if alpha.ndim == 1:
             alpha.unsqueeze_(0)

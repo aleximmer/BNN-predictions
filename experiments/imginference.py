@@ -8,7 +8,9 @@ from torch.distributions import Categorical
 from tqdm import tqdm
 import logging
 from itertools import chain
+from datetime import datetime
 
+from preds.exceptions import NumericsGPError
 from preds.laplace import Laplace, FunctionaLaplace
 from preds.likelihoods import CategoricalLh
 from preds.utils import nll_cls, macc, ece
@@ -297,6 +299,8 @@ def gp(dataset_name, ds_train, ds_test, ds_ood, model_name, batch_size, seed):
     eligible_files = list()
     perfs = list()
     for file in os.listdir('models'):
+        if file == "500_epochs":
+            continue
         # strip off filename ending using indexing
         ds, m, s, delta = file[:-3].split('_')
         if ds == dataset_name and m == model_name and float(delta) > 0 and seed == int(s):
@@ -340,7 +344,8 @@ def gp(dataset_name, ds_train, ds_test, ds_ood, model_name, batch_size, seed):
 
     gp_perf = dict(delta=state['delta'])
 
-    for method in ['random', 'topk']:
+    # for method in ['random', 'topk']:
+    for method in ['random']:
         logging.info(f'Running for method {method}')
         for M in [50, 100, 200, 400, 800, 1600, 3200]:
             logging.info(f'Running for M={M} and method {method}')
@@ -363,16 +368,30 @@ def gp(dataset_name, ds_train, ds_test, ds_ood, model_name, batch_size, seed):
                       max_ram_gb=12, batch_size_per_gpu=batch_size)
 
             for delta_factor in np.logspace(-1, 3, 13):
+                # if np.abs(delta_factor - 0.46415) > 0.001:
+                #     continue
                 logging.info(f'Running for M={M} and method {method} with deltafac={delta_factor}')
                 key = method + '-' + str(M) + '-' + str(delta_factor)
-                lap.prior_prec = delta_sub * delta_factor
-                pred_vto = lap.predictive_samples().cpu()
-                pred_val, pred_test, pred_ood = pred_vto[:val], pred_vto[val:test], pred_vto[test:]
+                try:
+                    lap.prior_prec = delta_sub * delta_factor
+                    pred_vto = lap.predictive_samples().cpu()
+                    pred_val, pred_test, pred_ood = pred_vto[:val], pred_vto[val:test], pred_vto[test:]
 
-                gp_perf[key] = {
-                    'ood': predictive_entropies(pred_test, pred_ood),
-                    'perf': evaluate(lh, yte, pred_test, yva, pred_val)
-                }
+                    _ood = predictive_entropies(pred_test, pred_ood)
+                    _perf = evaluate(lh, yte, pred_test, yva, pred_val)
+
+                    logging.info(f'ood: {_ood}, perf: {_perf}')
+
+                    gp_perf[key] = {
+                        'ood': _ood,
+                        'perf': _perf
+                    }
+                except NumericsGPError:
+                    logging.info(f'Could not perform GP inference for delta={delta_factor} and M={M} due to numerical issues.')
+                    gp_perf[key] = {
+                        'ood': None,
+                        'perf': None
+                    }
 
     fname = f'results/{dataset_name}_{model_name}_{seed}_GP.pkl'
     logging.info(f'save {fname}')
@@ -400,7 +419,12 @@ if __name__ == '__main__':
     model_name = args.model
     rerun = args.rerun
 
-    logging.basicConfig(level=logging.INFO if args.loginfo else logging.WARNING)
+    now = datetime.now()
+    dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+    log_name = f"logs/{dataset}_{model_name}_{args.seed}_{dt_string}"
+    logging.basicConfig(level=logging.INFO if args.loginfo else logging.WARNING,
+                        filename=log_name,
+                        filemode='a')
     ds_train, ds_test = get_dataset(dataset, False)
     if args.gp:
         # does inference and OOD at once!

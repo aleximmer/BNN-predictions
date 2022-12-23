@@ -131,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', help='dataset', choices=datasets)
     parser.add_argument('-m', '--model', help='which model to train', choices=models)
     parser.add_argument('-s', '--seed', help='randomness seed', default=117, type=int)
-    parser.add_argument('--n_epochs', help='epochs training neural network', default=200, type=int)
+    parser.add_argument('--n_epochs', help='epochs training neural network', default=500, type=int)
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--lr', help='neural network learning rate', default=1e-3, type=float)
     parser.add_argument('--n_deltas', help='number of deltas to try', default=16, type=int)
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     # naming convention: dataset_model_seed_delta
     PATH = '/home/mjazbec/laplace/BNN-predictions/experiments/'
-    fname = PATH + 'models/' + '_'.join([dataset, model_name, str(seed)]) + '_{delta:.1e}.pt'
+    fname = PATH + 'models/' + f'{n_epochs}_epochs/' + '_'.join([dataset, model_name, str(seed)]) + '_{delta:.1e}.pt'
     deltas = np.logspace(logd_min, logd_max, n_deltas)
     deltas = np.insert(deltas, 0, 0)  # add unregularized network
 
