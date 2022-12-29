@@ -1,8 +1,10 @@
 import torch
 import numpy as np
 
-DATASET = "FMNIST"
-MODEL_NAME = "CNN"
+# DATASET = "FMNIST"
+DATASET = "CIFAR10"
+# MODEL_NAME = "CNN"
+MODEL_NAME = "AllCNN"
 SEED = 117
 
 PATH = '/home/mjazbec/laplace/BNN-predictions/experiments/'
@@ -11,7 +13,8 @@ fname = PATH + 'models/' + '_'.join([DATASET, MODEL_NAME, str(SEED)]) + '_{delta
 deltas = np.logspace(-2.0, 3.0, 16)
 # deltas = np.insert(deltas, 0, 0)  # add unregularized network
 
-LA_TYPE = 'map'
+LA_TYPE = 'lap_kron'
+# LA_TYPE = 'map'
 
 best_acc, best_nll, best_ece = 0., 1., 1.
 for delta in deltas:

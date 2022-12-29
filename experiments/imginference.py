@@ -347,7 +347,8 @@ def gp(dataset_name, ds_train, ds_test, ds_ood, model_name, batch_size, seed):
     # for method in ['random', 'topk']:
     for method in ['random']:
         logging.info(f'Running for method {method}')
-        for M in [50, 100, 200, 400, 800, 1600, 3200]:
+        for M in [50, 100, 200, 400, 800, 1600]:
+        # for M in [50, 100, 200, 400, 800, 1600, 3200]:
             logging.info(f'Running for M={M} and method {method}')
 
             if method == 'random':
