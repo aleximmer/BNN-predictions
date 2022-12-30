@@ -106,12 +106,12 @@ def main(dataset_name, ds_train, ds_test, model_name, rerun, batch_size, seed,
 
     eligible_files = list()
     deltas = list()
-    for file in os.listdir('models'):
+    for file in os.listdir('models/500_epochs'):
         # strip off filename ending using indexing
         ds, m, s, delta = file[:-3].split('_')
         if ds == dataset_name and m == model_name and seed == int(s) and \
                 (float(delta) >= delta_min) and (float(delta) <= delta_max):
-            eligible_files.append('models/' + file)
+            eligible_files.append('models/500_epochs/' + file)
             deltas.append(float(delta))
     # start with smallest delta and continue
     ixlist = np.argsort(deltas)
@@ -131,9 +131,9 @@ def main(dataset_name, ds_train, ds_test, model_name, rerun, batch_size, seed,
     for f, delta in tqdm(list(zip(eligible_files, deltas))):
         logging.info(f'inference for delta={delta}')
         state = torch.load(f)
-        if 'map' in state and not rerun:
-            # do not recompute the metrics
-            continue
+        # if 'map' in state and not rerun:
+        #     # do not recompute the metrics
+        #     continue
         model = get_model(model_name, ds_train)
         model.load_state_dict(state['model'])
         model = model.cuda()
@@ -182,6 +182,7 @@ def main(dataset_name, ds_train, ds_test, model_name, rerun, batch_size, seed,
         mstar_te, yte = get_nn_predictive(test_loader, lap)
         state['lap_diag_nn'] = evaluate(lh, yte, mstar_te, yva, mstar_va)
 
+        logging.info(f'Saving: {f}')
         torch.save(state, f)
 
 
@@ -298,9 +299,9 @@ def gp(dataset_name, ds_train, ds_test, ds_ood, model_name, batch_size, seed):
     lh = CategoricalLh()
     eligible_files = list()
     perfs = list()
-    for file in os.listdir('models'):
-        if file == "500_epochs":
-            continue
+    for file in os.listdir('models/500_epochs'):
+        # if file == "500_epochs":
+        #     continue
         # strip off filename ending using indexing
         ds, m, s, delta = file[:-3].split('_')
         if ds == dataset_name and m == model_name and float(delta) > 0 and seed == int(s):

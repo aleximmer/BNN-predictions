@@ -2,7 +2,7 @@ import pickle
 import pandas as pd
 import matplotlib.pyplot as plt
 
-with open('results/FMNIST_CNN_117_GP.pkl', 'rb') as f:
+with open('results/FMINST_CNN_117_GP_200_epochs.pkl', 'rb') as f:
     data = pickle.load(f)
 
     data.pop('delta')

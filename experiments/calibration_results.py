@@ -1,14 +1,14 @@
 import torch
 import numpy as np
 
-# DATASET = "FMNIST"
-DATASET = "CIFAR10"
-# MODEL_NAME = "CNN"
-MODEL_NAME = "AllCNN"
+DATASET = "FMNIST"
+# DATASET = "CIFAR10"
+MODEL_NAME = "CNN"
+# MODEL_NAME = "AllCNN"
 SEED = 117
 
 PATH = '/home/mjazbec/laplace/BNN-predictions/experiments/'
-fname = PATH + 'models/' + '_'.join([DATASET, MODEL_NAME, str(SEED)]) + '_{delta:.1e}.pt'
+fname = PATH + 'models/500_epochs/' + '_'.join([DATASET, MODEL_NAME, str(SEED)]) + '_{delta:.1e}.pt'
 
 deltas = np.logspace(-2.0, 3.0, 16)
 # deltas = np.insert(deltas, 0, 0)  # add unregularized network
@@ -18,10 +18,11 @@ LA_TYPE = 'lap_kron'
 
 best_acc, best_nll, best_ece = 0., 1., 1.
 for delta in deltas:
-    print(delta)
+    print("DELTA ", delta)
     params = torch.load(fname.format(delta=delta), map_location=torch.device('cpu'))
+    # print(params)
     # print(params.keys())
-    # print(params[LA_TYPE])
+    # print(params[LA_TYPE].keys())
     acc = params[LA_TYPE]['acc_te']
     nll = params[LA_TYPE]['nll_te']
     ece = params[LA_TYPE]['ece_te']
